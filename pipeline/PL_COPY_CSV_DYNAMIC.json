@@ -50,13 +50,25 @@
 				"inputs": [
 					{
 						"referenceName": "DS_SRC_ADLS_CSV_DYNAMIC",
-						"type": "DatasetReference"
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": {
+								"value": "@pipeline().parameters.PLP_FileName",
+								"type": "Expression"
+							}
+						}
 					}
 				],
 				"outputs": [
 					{
 						"referenceName": "DS_TRGT_ADLS_CSV_DYNAMIC",
-						"type": "DatasetReference"
+						"type": "DatasetReference",
+						"parameters": {
+							"TargetFileName": {
+								"value": "@concat(\r\n    replace(pipeline().parameters.PLP_FileName, '.csv', ''),\r\n    '_',\r\n    formatDateTime(utcNow(), 'yyyyMMdd')\r\n)",
+								"type": "Expression"
+							}
+						}
 					}
 				]
 			},
@@ -82,7 +94,13 @@
 				"typeProperties": {
 					"dataset": {
 						"referenceName": "DS_SRC_ADLS_CSV_DYNAMIC",
-						"type": "DatasetReference"
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": {
+								"value": "@pipeline().parameters.PLP_FileName",
+								"type": "Expression"
+							}
+						}
 					},
 					"enableLogging": false,
 					"storeSettings": {
@@ -94,7 +112,7 @@
 			}
 		],
 		"parameters": {
-			"FileName": {
+			"PLP_FileName": {
 				"type": "string"
 			}
 		},
