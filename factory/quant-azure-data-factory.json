@@ -1,0 +1,15 @@
+{
+	"name": "quant-azure-data-factory",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Enabled",
+			"editable": true
+		}
+	},
+	"location": "eastus2",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "13b54a79-d3ff-47b7-b95e-87162c6259ad",
+		"tenantId": "77405ede-ce00-4b33-a2f9-dc99780ccf8b"
+	}
+}
