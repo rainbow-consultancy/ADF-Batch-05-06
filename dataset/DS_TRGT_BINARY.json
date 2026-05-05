@@ -1,0 +1,30 @@
+{
+	"name": "DS_TRGT_BINARY",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_ADLS_GEN2",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"trgt_file_name": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "ADLS"
+		},
+		"annotations": [],
+		"type": "Binary",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().trgt_file_name",
+					"type": "Expression"
+				},
+				"folderPath": "Raw",
+				"fileSystem": "quant-container"
+			}
+		}
+	}
+}
