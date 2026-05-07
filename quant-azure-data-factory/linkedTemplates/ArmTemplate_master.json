@@ -11,9 +11,25 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'accountKey' of 'LS_ADLS_GEN2'"
 		},
+		"LS_AZURE_SQL_DB_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'LS_AZURE_SQL_DB'"
+		},
 		"LS_ADLS_GEN2_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://quantcloudstorage.dfs.core.windows.net/"
+		},
+		"LS_AZURE_SQL_DB_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "qctech.database.windows.net"
+		},
+		"LS_AZURE_SQL_DB_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "QuantCloudDB"
+		},
+		"LS_AZURE_SQL_DB_properties_typeProperties_userName": {
+			"type": "string",
+			"defaultValue": "QuantUser"
 		},
 		"containerUri": {
 			"type": "string",
@@ -45,8 +61,20 @@
 					"LS_ADLS_GEN2_accountKey": {
 						"value": "[parameters('LS_ADLS_GEN2_accountKey')]"
 					},
+					"LS_AZURE_SQL_DB_password": {
+						"value": "[parameters('LS_AZURE_SQL_DB_password')]"
+					},
 					"LS_ADLS_GEN2_properties_typeProperties_url": {
 						"value": "[parameters('LS_ADLS_GEN2_properties_typeProperties_url')]"
+					},
+					"LS_AZURE_SQL_DB_properties_typeProperties_server": {
+						"value": "[parameters('LS_AZURE_SQL_DB_properties_typeProperties_server')]"
+					},
+					"LS_AZURE_SQL_DB_properties_typeProperties_database": {
+						"value": "[parameters('LS_AZURE_SQL_DB_properties_typeProperties_database')]"
+					},
+					"LS_AZURE_SQL_DB_properties_typeProperties_userName": {
+						"value": "[parameters('LS_AZURE_SQL_DB_properties_typeProperties_userName')]"
 					}
 				}
 			},
