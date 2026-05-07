@@ -1,0 +1,35 @@
+{
+	"name": "DS_ADLS_SQL_TRGT",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_ADLS_GEN2",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"trgt_table_name": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "SQL"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().trgt_table_name",
+					"type": "Expression"
+				},
+				"folderPath": "SqlFiles",
+				"fileSystem": "quant-container"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": []
+	}
+}
