@@ -1,0 +1,6 @@
+{
+	"name": "QuantCloudOnPrem-IR",
+	"properties": {
+		"type": "SelfHosted"
+	}
+}
