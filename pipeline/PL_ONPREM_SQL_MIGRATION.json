@@ -70,12 +70,14 @@
 									"partitionOption": "None"
 								},
 								"sink": {
-									"type": "ParquetSink",
+									"type": "DelimitedTextSink",
 									"storeSettings": {
 										"type": "AzureBlobFSWriteSettings"
 									},
 									"formatSettings": {
-										"type": "ParquetWriteSettings"
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
 									}
 								},
 								"enableStaging": false,
@@ -106,10 +108,10 @@
 							],
 							"outputs": [
 								{
-									"referenceName": "DS_ONPREM_TO_ADLS_PAR_K",
+									"referenceName": "DS_ONPREM_TO_ADLS_CSV",
 									"type": "DatasetReference",
 									"parameters": {
-										"trgt_file_name": {
+										"tbl_name": {
 											"value": "@toLower(item().TABLE_NAME)",
 											"type": "Expression"
 										}
