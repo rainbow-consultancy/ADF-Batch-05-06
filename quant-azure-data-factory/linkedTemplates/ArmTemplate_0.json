@@ -495,6 +495,43 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/DS_ONPREM_TO_ADLS_CSV')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_ADLS_GEN2",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"tbl_name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().tbl_name",
+							"type": "Expression"
+						},
+						"folderPath": "ONPREM_TABLES",
+						"fileSystem": "quant-container"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS_GEN2')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/PL_COPY_CSV_DYNAMIC')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1402,44 +1439,6 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/DS_AZURE_SQL')]",
 				"[concat(variables('factoryId'), '/datasets/DS_ADLS_SQL_TRGT')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_ONPREM_SQL')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "LS_ONPREM_SQL_SERVER",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"src_table_schema": {
-						"type": "string"
-					},
-					"src_table_name": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "SQL"
-				},
-				"annotations": [],
-				"type": "SqlServerTable",
-				"schema": [],
-				"typeProperties": {
-					"schema": {
-						"value": "@dataset().src_table_schema",
-						"type": "Expression"
-					},
-					"table": {
-						"value": "@dataset().src_table_name",
-						"type": "Expression"
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/LS_ONPREM_SQL_SERVER')]"
 			]
 		}
 	]
