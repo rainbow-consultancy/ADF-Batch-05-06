@@ -49,7 +49,7 @@
 		},
 		"EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_folder_path": {
 			"type": "string",
-			"defaultValue": "@triggerBody().folderPath"
+			"defaultValue": "@replace(triggerBody().folderPath,'quant-container/','')"
 		},
 		"EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_file_name": {
 			"type": "string",
