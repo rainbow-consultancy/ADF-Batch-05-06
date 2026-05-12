@@ -5,20 +5,7 @@
 			{
 				"name": "CopyCreatedFile",
 				"type": "Copy",
-				"dependsOn": [
-					{
-						"activity": "Set variable1",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Set variable2",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -128,40 +115,6 @@
 						"enablePartitionDiscovery": false
 					}
 				}
-			},
-			{
-				"name": "Set variable1",
-				"type": "SetVariable",
-				"dependsOn": [],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "folder_path_set",
-					"value": {
-						"value": "@pipeline().parameters.folder_path",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Set variable2",
-				"type": "SetVariable",
-				"dependsOn": [],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "file_path_set",
-					"value": {
-						"value": "@pipeline().parameters.file_name",
-						"type": "Expression"
-					}
-				}
 			}
 		],
 		"parameters": {
@@ -170,14 +123,6 @@
 			},
 			"file_name": {
 				"type": "string"
-			}
-		},
-		"variables": {
-			"folder_path_set": {
-				"type": "String"
-			},
-			"file_path_set": {
-				"type": "String"
 			}
 		},
 		"annotations": []
