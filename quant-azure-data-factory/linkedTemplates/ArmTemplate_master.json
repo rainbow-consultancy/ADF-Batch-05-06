@@ -47,6 +47,18 @@
 			"type": "string",
 			"defaultValue": "AdfUser"
 		},
+		"EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_folder_path": {
+			"type": "string",
+			"defaultValue": "@triggerBody().folderPath"
+		},
+		"EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_file_name": {
+			"type": "string",
+			"defaultValue": "@triggerBody().fileName"
+		},
+		"EventBasedTriggerADLS_properties_typeProperties_scope": {
+			"type": "string",
+			"defaultValue": "/subscriptions/a8c62c57-2636-40f5-a753-24c196a04e1f/resourceGroups/rg-quantcloud-technologies/providers/Microsoft.Storage/storageAccounts/quantcloudstorage"
+		},
 		"containerUri": {
 			"type": "string",
 			"metadata": "URI to storage account containing linked ARM templates"
@@ -121,6 +133,15 @@
 				"parameters": {
 					"factoryName": {
 						"value": "[parameters('factoryName')]"
+					},
+					"EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_folder_path": {
+						"value": "[parameters('EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_folder_path')]"
+					},
+					"EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_file_name": {
+						"value": "[parameters('EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_file_name')]"
+					},
+					"EventBasedTriggerADLS_properties_typeProperties_scope": {
+						"value": "[parameters('EventBasedTriggerADLS_properties_typeProperties_scope')]"
 					}
 				}
 			},

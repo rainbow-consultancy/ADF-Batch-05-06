@@ -46,6 +46,18 @@
 		"LS_ONPREM_SQL_SERVER_properties_typeProperties_userName": {
 			"type": "string",
 			"defaultValue": "AdfUser"
+		},
+		"EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_folder_path": {
+			"type": "string",
+			"defaultValue": "@triggerBody().folderPath"
+		},
+		"EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_file_name": {
+			"type": "string",
+			"defaultValue": "@triggerBody().fileName"
+		},
+		"EventBasedTriggerADLS_properties_typeProperties_scope": {
+			"type": "string",
+			"defaultValue": "/subscriptions/a8c62c57-2636-40f5-a753-24c196a04e1f/resourceGroups/rg-quantcloud-technologies/providers/Microsoft.Storage/storageAccounts/quantcloudstorage"
 		}
 	},
 	"variables": {
@@ -826,6 +838,143 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/PL_ONPREM_SQL_MIGRATION')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookOnPremMetadata",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlServerSource",
+								"sqlReaderQuery": "select TABLE_SCHEMA, TABLE_NAME from INFORMATION_SCHEMA.TABLES \nwhere TABLE_TYPE = 'BASE TABLE';",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DS_ONPREM_SQL",
+								"type": "DatasetReference",
+								"parameters": {
+									"src_table_schema": "''",
+									"src_table_name": "''"
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachTable",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "LookOnPremMetadata",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('LookOnPremMetadata').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 10,
+							"activities": [
+								{
+									"name": "CopyTable",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlServerSource",
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "DS_ONPREM_SQL",
+											"type": "DatasetReference",
+											"parameters": {
+												"src_table_schema": {
+													"value": "@item().TABLE_SCHEMA",
+													"type": "Expression"
+												},
+												"src_table_name": {
+													"value": "@item().TABLE_NAME",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DS_ONPREM_TO_ADLS_CSV",
+											"type": "DatasetReference",
+											"parameters": {
+												"tbl_name": {
+													"value": "@toLower(item().TABLE_NAME)",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_ONPREM_SQL')]",
+				"[concat(variables('factoryId'), '/datasets/DS_ONPREM_TO_ADLS_CSV')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/PL_SQL_TO_ADLS_CSV')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1038,6 +1187,118 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/LS_AZURE_SQL_DB')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_ONPREM_SQL')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_ONPREM_SQL_SERVER",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"src_table_schema": {
+						"type": "string"
+					},
+					"src_table_name": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "SQL"
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().src_table_schema",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().src_table_name",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_ONPREM_SQL_SERVER')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_ONPREM_TO_ADLS_CSV')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_ADLS_GEN2",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"tbl_name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().tbl_name",
+							"type": "Expression"
+						},
+						"folderPath": "ONPREM_TABLES",
+						"fileSystem": "quant-container"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS_GEN2')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_ONPREM_TO_ADLS_PAR_K')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_ADLS_GEN2",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"trgt_file_name": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "ADLS"
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().trgt_file_name",
+							"type": "Expression"
+						},
+						"folderPath": "ONPREM_SQL_TABLES",
+						"fileSystem": "quant-container"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS_GEN2')]"
 			]
 		},
 		{
@@ -1330,16 +1591,6 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/QuantCloudOnPrem-IR')]",
-			"type": "Microsoft.DataFactory/factories/integrationRuntimes",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"type": "SelfHosted",
-				"typeProperties": {}
-			},
-			"dependsOn": []
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/LS_ONPREM_SQL_SERVER')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
 			"apiVersion": "2018-06-01",
@@ -1368,45 +1619,199 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DS_ONPREM_SQL')]",
+			"name": "[concat(parameters('factoryName'), '/QuantCloudOnPrem-IR')]",
+			"type": "Microsoft.DataFactory/factories/integrationRuntimes",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "SelfHosted",
+				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_EVENT_BASED_MIGRATION')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyCreatedFile",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "ParquetSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "ParquetWriteSettings"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_SRC_CSV_ADLS",
+								"type": "DatasetReference",
+								"parameters": {
+									"src_folder_path": {
+										"value": "@pipeline().parameters.folder_path",
+										"type": "Expression"
+									},
+									"src_file_name": {
+										"value": "@pipeline().parameters.file_name",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_TRGT_ADLS_PARQUET",
+								"type": "DatasetReference",
+								"parameters": {
+									"trgt_file_name": {
+										"value": "@replace(pipeline().parameters.file_name, '.csv', '')",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "DeleteFile",
+						"type": "Delete",
+						"dependsOn": [
+							{
+								"activity": "CopyCreatedFile",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "DS_SRC_CSV_ADLS",
+								"type": "DatasetReference",
+								"parameters": {
+									"src_folder_path": {
+										"value": "@pipeline().parameters.folder_path",
+										"type": "Expression"
+									},
+									"src_file_name": {
+										"value": "@pipeline().parameters.file_name",
+										"type": "Expression"
+									}
+								}
+							},
+							"enableLogging": false,
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"folder_path": {
+						"type": "string"
+					},
+					"file_name": {
+						"type": "string"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_SRC_CSV_ADLS')]",
+				"[concat(variables('factoryId'), '/datasets/DS_TRGT_ADLS_PARQUET')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_SRC_CSV_ADLS')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "LS_ONPREM_SQL_SERVER",
+					"referenceName": "LS_ADLS_GEN2",
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
-					"src_table_schema": {
+					"src_folder_path": {
 						"type": "string"
 					},
-					"src_table_name": {
+					"src_file_name": {
 						"type": "string"
 					}
-				},
-				"folder": {
-					"name": "SQL"
 				},
 				"annotations": [],
-				"type": "SqlServerTable",
-				"schema": [],
+				"type": "DelimitedText",
 				"typeProperties": {
-					"schema": {
-						"value": "@dataset().src_table_schema",
-						"type": "Expression"
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().src_file_name",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().src_folder_path",
+							"type": "Expression"
+						},
+						"fileSystem": "quant-container"
 					},
-					"table": {
-						"value": "@dataset().src_table_name",
-						"type": "Expression"
-					}
-				}
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/LS_ONPREM_SQL_SERVER')]"
+				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS_GEN2')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DS_ONPREM_TO_ADLS_PAR_K')]",
+			"name": "[concat(parameters('factoryName'), '/DS_TRGT_ADLS_PARQUET')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -1419,9 +1824,6 @@
 						"type": "string"
 					}
 				},
-				"folder": {
-					"name": "ADLS"
-				},
 				"annotations": [],
 				"type": "Parquet",
 				"typeProperties": {
@@ -1431,7 +1833,7 @@
 							"value": "@dataset().trgt_file_name",
 							"type": "Expression"
 						},
-						"folderPath": "ONPREM_SQL_TABLES",
+						"folderPath": "Ready",
 						"fileSystem": "quant-container"
 					},
 					"compressionCodec": "snappy"
@@ -1443,177 +1845,37 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/PL_ONPREM_SQL_MIGRATION')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
+			"name": "[concat(parameters('factoryName'), '/EventBasedTriggerADLS')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"activities": [
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
 					{
-						"name": "LookOnPremMetadata",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
+						"pipelineReference": {
+							"referenceName": "PL_EVENT_BASED_MIGRATION",
+							"type": "PipelineReference"
 						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlServerSource",
-								"sqlReaderQuery": "select TABLE_SCHEMA, TABLE_NAME from INFORMATION_SCHEMA.TABLES \nwhere TABLE_TYPE = 'BASE TABLE';",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DS_ONPREM_SQL",
-								"type": "DatasetReference",
-								"parameters": {
-									"src_table_schema": "''",
-									"src_table_name": "''"
-								}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "ForEachTable",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "LookOnPremMetadata",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('LookOnPremMetadata').output.value",
-								"type": "Expression"
-							},
-							"batchCount": 10,
-							"activities": [
-								{
-									"name": "CopyTable",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlServerSource",
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"sink": {
-											"type": "DelimitedTextSink",
-											"storeSettings": {
-												"type": "AzureBlobFSWriteSettings"
-											},
-											"formatSettings": {
-												"type": "DelimitedTextWriteSettings",
-												"quoteAllText": true,
-												"fileExtension": ".txt"
-											}
-										},
-										"enableStaging": false,
-										"translator": {
-											"type": "TabularTranslator",
-											"typeConversion": true,
-											"typeConversionSettings": {
-												"allowDataTruncation": true,
-												"treatBooleanAsNumber": false
-											}
-										}
-									},
-									"inputs": [
-										{
-											"referenceName": "DS_ONPREM_SQL",
-											"type": "DatasetReference",
-											"parameters": {
-												"src_table_schema": {
-													"value": "@item().TABLE_SCHEMA",
-													"type": "Expression"
-												},
-												"src_table_name": {
-													"value": "@item().TABLE_NAME",
-													"type": "Expression"
-												}
-											}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "DS_ONPREM_TO_ADLS_CSV",
-											"type": "DatasetReference",
-											"parameters": {
-												"tbl_name": {
-													"value": "@toLower(item().TABLE_NAME)",
-													"type": "Expression"
-												}
-											}
-										}
-									]
-								}
-							]
+						"parameters": {
+							"folder_path": "[parameters('EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_folder_path')]",
+							"file_name": "[parameters('EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_file_name')]"
 						}
 					}
 				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/DS_ONPREM_SQL')]",
-				"[concat(variables('factoryId'), '/datasets/DS_ONPREM_TO_ADLS_CSV')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_ONPREM_TO_ADLS_CSV')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "LS_ADLS_GEN2",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"tbl_name": {
-						"type": "string"
-					}
-				},
-				"annotations": [],
-				"type": "DelimitedText",
+				"type": "BlobEventsTrigger",
 				"typeProperties": {
-					"location": {
-						"type": "AzureBlobFSLocation",
-						"fileName": {
-							"value": "@dataset().tbl_name",
-							"type": "Expression"
-						},
-						"folderPath": "ONPREM_TABLES",
-						"fileSystem": "quant-container"
-					},
-					"columnDelimiter": ",",
-					"escapeChar": "\\",
-					"firstRowAsHeader": true,
-					"quoteChar": "\""
-				},
-				"schema": []
+					"blobPathBeginsWith": "/quant-container/blobs/Raw/",
+					"blobPathEndsWith": ".csv",
+					"ignoreEmptyBlobs": true,
+					"scope": "[parameters('EventBasedTriggerADLS_properties_typeProperties_scope')]",
+					"events": [
+						"Microsoft.Storage.BlobCreated"
+					]
+				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS_GEN2')]"
+				"[concat(variables('factoryId'), '/pipelines/PL_EVENT_BASED_MIGRATION')]"
 			]
 		}
 	]

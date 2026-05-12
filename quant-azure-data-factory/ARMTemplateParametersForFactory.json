@@ -34,6 +34,15 @@
 		},
 		"LS_ONPREM_SQL_SERVER_properties_typeProperties_userName": {
 			"value": "AdfUser"
+		},
+		"EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_folder_path": {
+			"value": "@triggerBody().folderPath"
+		},
+		"EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_file_name": {
+			"value": "@triggerBody().fileName"
+		},
+		"EventBasedTriggerADLS_properties_typeProperties_scope": {
+			"value": "/subscriptions/a8c62c57-2636-40f5-a753-24c196a04e1f/resourceGroups/rg-quantcloud-technologies/providers/Microsoft.Storage/storageAccounts/quantcloudstorage"
 		}
 	}
 }
