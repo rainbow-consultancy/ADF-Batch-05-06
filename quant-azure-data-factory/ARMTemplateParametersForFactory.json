@@ -36,7 +36,7 @@
 			"value": "AdfUser"
 		},
 		"EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_folder_path": {
-			"value": "@triggerBody().folderPath"
+			"value": "@replace(triggerBody().folderPath, '/', '')"
 		},
 		"EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_file_name": {
 			"value": "@triggerBody().fileName"
