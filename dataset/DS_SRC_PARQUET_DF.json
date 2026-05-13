@@ -1,0 +1,21 @@
+{
+	"name": "DS_SRC_PARQUET_DF",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_ADLS_GEN2",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Parquet",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "players",
+				"folderPath": "Ready",
+				"fileSystem": "quant-container"
+			},
+			"compressionCodec": "snappy"
+		},
+		"schema": []
+	}
+}
