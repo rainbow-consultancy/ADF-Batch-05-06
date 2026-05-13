@@ -648,7 +648,6 @@
 				"typeProperties": {
 					"location": {
 						"type": "AzureBlobFSLocation",
-						"fileName": "GoalKeepersData",
 						"folderPath": "Raw",
 						"fileSystem": "quant-container"
 					},

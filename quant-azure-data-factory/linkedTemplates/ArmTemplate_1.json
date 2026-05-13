@@ -999,11 +999,14 @@
 						"SourcePlayers filter(byName('position') == 'Goalkeeper') ~> FilterGoalkeepers",
 						"FilterGoalkeepers sink(allowSchemaDrift: true,",
 						"     validateSchema: false,",
+						"     partitionFileNames:['GoalKeepersData'],",
+						"     truncate: true,",
 						"     umask: 0022,",
 						"     preCommands: [],",
 						"     postCommands: [],",
 						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> SinkPlayerGoalKeepers"
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> SinkPlayerGoalKeepers"
 					]
 				}
 			},
