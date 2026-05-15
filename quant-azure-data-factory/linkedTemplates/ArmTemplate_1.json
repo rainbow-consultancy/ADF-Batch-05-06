@@ -25,6 +25,161 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/DS_TRGT_CSV_ADLS_DF')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_ADLS_GEN2",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "EnrichedCustomerOrderDetail",
+						"folderPath": "DataFlowOutput",
+						"fileSystem": "quant-container"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_COPY_CSV_DYNAMIC')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyCSVDynamic",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_SRC_ADLS_CSV_DYNAMIC",
+								"type": "DatasetReference",
+								"parameters": {
+									"FileName": {
+										"value": "@pipeline().parameters.PLP_FileName",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_TRGT_ADLS_CSV_DYNAMIC",
+								"type": "DatasetReference",
+								"parameters": {
+									"TargetFileName": {
+										"value": "@concat(\r\n    replace(pipeline().parameters.PLP_FileName, '.csv', ''),\r\n    '_',\r\n    formatDateTime(utcNow(), 'yyyyMMdd')\r\n)",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "DeleteSrcFile",
+						"type": "Delete",
+						"dependsOn": [
+							{
+								"activity": "CopyCSVDynamic",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "DS_SRC_ADLS_CSV_DYNAMIC",
+								"type": "DatasetReference",
+								"parameters": {
+									"FileName": {
+										"value": "@pipeline().parameters.PLP_FileName",
+										"type": "Expression"
+									}
+								}
+							},
+							"enableLogging": false,
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"PLP_FileName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-04-30T04:32:17Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/PL_COPY_MULTI_CSV_FILES_DYNAMICALLY')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1013,6 +1168,157 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/DF_JOIN_CUS_ORDERS')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "DS_SRC_CSV_ADLS_DF",
+								"type": "DatasetReference"
+							},
+							"name": "SourceCustomerData"
+						},
+						{
+							"dataset": {
+								"referenceName": "DS_SRC_CSV_ADLS_DF",
+								"type": "DatasetReference"
+							},
+							"name": "SourceOrderHeader"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "DS_TRGT_CSV_ADLS_DF",
+								"type": "DatasetReference"
+							},
+							"name": "EnrichedCustomerOrderDetail"
+						}
+					],
+					"transformations": [
+						{
+							"name": "SelectedCustomerColumns"
+						},
+						{
+							"name": "SelectedOrderColumns"
+						},
+						{
+							"name": "JoinCusOrders"
+						},
+						{
+							"name": "CustomerColumns"
+						},
+						{
+							"name": "FinalSelect"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          CustomerID as short,",
+						"          NameStyle as boolean,",
+						"          Title as string,",
+						"          FirstName as string,",
+						"          MiddleName as string,",
+						"          LastName as string,",
+						"          Suffix as string,",
+						"          CompanyName as string,",
+						"          SalesPerson as string,",
+						"          EmailAddress as string,",
+						"          Phone as string,",
+						"          PasswordHash as string,",
+						"          PasswordSalt as string,",
+						"          rowguid as string,",
+						"          ModifiedDate as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     partitionBy('hash', 1)) ~> SourceCustomerData",
+						"source(output(",
+						"          SalesOrderID as integer,",
+						"          RevisionNumber as short,",
+						"          OrderDate as string,",
+						"          DueDate as string,",
+						"          ShipDate as string,",
+						"          Status as short,",
+						"          OnlineOrderFlag as boolean,",
+						"          SalesOrderNumber as string,",
+						"          PurchaseOrderNumber as string,",
+						"          AccountNumber as string,",
+						"          CustomerID as short,",
+						"          ShipToAddressID as short,",
+						"          BillToAddressID as short,",
+						"          ShipMethod as string,",
+						"          CreditCardApprovalCode as string,",
+						"          SubTotal as double,",
+						"          TaxAmt as double,",
+						"          Freight as double,",
+						"          TotalDue as double,",
+						"          Comment as string,",
+						"          rowguid as string,",
+						"          ModifiedDate as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     partitionBy('hash', 1)) ~> SourceOrderHeader",
+						"SourceCustomerData select(mapColumn(",
+						"          CustomerID,",
+						"          FirstName,",
+						"          LastName",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> SelectedCustomerColumns",
+						"SourceOrderHeader select(mapColumn(",
+						"          SalesOrderID,",
+						"          CustomerID,",
+						"          Status,",
+						"          SubTotal,",
+						"          TaxAmt,",
+						"          TotalDue",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> SelectedOrderColumns",
+						"CustomerColumns, SelectedOrderColumns join(SelectedCustomerColumns@CustomerID == SelectedOrderColumns@CustomerID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     partitionBy('hash', 1),",
+						"     broadcast: 'auto')~> JoinCusOrders",
+						"SelectedCustomerColumns derive(FullName = concat(FirstName, ' ', LastName)) ~> CustomerColumns",
+						"JoinCusOrders select(mapColumn(",
+						"          CustomerID = SelectedCustomerColumns@CustomerID,",
+						"          FullName,",
+						"          SalesOrderID,",
+						"          Status,",
+						"          SubTotal,",
+						"          TaxAmt,",
+						"          TotalDue",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> FinalSelect",
+						"FinalSelect sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['EnrichedCustomerOrderDetail'],",
+						"     truncate: true,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> EnrichedCustomerOrderDetail"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_TRGT_CSV_ADLS_DF')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/PL_ONPREM_SQL_MIGRATION')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1149,40 +1455,6 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/EventBasedTriggerADLS')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "PL_EVENT_BASED_MIGRATION",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"folder_path": "[parameters('EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_folder_path')]",
-							"file_name": "[parameters('EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_file_name')]"
-						}
-					}
-				],
-				"type": "BlobEventsTrigger",
-				"typeProperties": {
-					"blobPathBeginsWith": "/quant-container/blobs/Raw/",
-					"blobPathEndsWith": ".csv",
-					"ignoreEmptyBlobs": true,
-					"scope": "[parameters('EventBasedTriggerADLS_properties_typeProperties_scope')]",
-					"events": [
-						"Microsoft.Storage.BlobCreated"
-					]
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/PL_EVENT_BASED_MIGRATION')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/PL_TEST_DATA_FLOW_PLAYERS')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1229,6 +1501,109 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/dataflows/DF_PLAYERS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/EventBasedTriggerADLS')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "PL_EVENT_BASED_MIGRATION",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"folder_path": "[parameters('EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_folder_path')]",
+							"file_name": "[parameters('EventBasedTriggerADLS_properties_PL_EVENT_BASED_MIGRATION_parameters_file_name')]"
+						}
+					}
+				],
+				"type": "BlobEventsTrigger",
+				"typeProperties": {
+					"blobPathBeginsWith": "/quant-container/blobs/Raw/",
+					"blobPathEndsWith": ".csv",
+					"ignoreEmptyBlobs": true,
+					"scope": "[parameters('EventBasedTriggerADLS_properties_typeProperties_scope')]",
+					"events": [
+						"Microsoft.Storage.BlobCreated"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PL_EVENT_BASED_MIGRATION')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_EnrichedCustomerOrderDetail')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "EnrichedCustomerOrderDetail",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "DF_JOIN_CUS_ORDERS",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"SourceCustomerData": {
+										"src_file_name": {
+											"value": "@pipeline().parameters.CustomerFileName",
+											"type": "Expression"
+										}
+									},
+									"SourceOrderHeader": {
+										"src_file_name": {
+											"value": "@pipeline().parameters.OrdersFileName",
+											"type": "Expression"
+										}
+									},
+									"EnrichedCustomerOrderDetail": {}
+								},
+								"linkedServiceParameters": {}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "None",
+							"cacheSinks": {
+								"firstRowOnly": true
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"CustomerFileName": {
+						"type": "string"
+					},
+					"OrdersFileName": {
+						"type": "string"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/DF_JOIN_CUS_ORDERS')]"
 			]
 		}
 	]

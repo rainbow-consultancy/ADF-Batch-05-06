@@ -1251,6 +1251,55 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/PL_TEST_DATA_FLOW_PLAYERS')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "DataFlowPlayers",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "DF_PLAYERS",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"SourcePlayers": {},
+									"SinkPlayerGoalKeepers": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "None",
+							"cacheSinks": {
+								"firstRowOnly": true
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/DF_PLAYERS')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/DS_ADLS_SQL_TRGT')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -1622,6 +1671,32 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/DS_SRC_PARQUET_DF')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_ADLS_GEN2",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "players",
+						"folderPath": "Ready",
+						"fileSystem": "quant-container"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS_GEN2')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/DS_TRGT_ADLS_CSV')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -1762,6 +1837,34 @@
 						"fileSystem": "quant-container"
 					}
 				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS_GEN2')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_TRGT_PLAYERS_GOALKEEPERS')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_ADLS_GEN2",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "Raw",
+						"fileSystem": "quant-container"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS_GEN2')]"
@@ -1933,46 +2036,182 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DS_SRC_PARQUET_DF')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
+			"name": "[concat(parameters('factoryName'), '/DF_JOIN_CUS_ORDERS')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"linkedServiceName": {
-					"referenceName": "LS_ADLS_GEN2",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "Parquet",
+				"type": "MappingDataFlow",
 				"typeProperties": {
-					"location": {
-						"type": "AzureBlobFSLocation",
-						"fileName": "players",
-						"folderPath": "Ready",
-						"fileSystem": "quant-container"
-					},
-					"compressionCodec": "snappy"
-				},
-				"schema": []
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "DS_SRC_CSV_ADLS_DF",
+								"type": "DatasetReference"
+							},
+							"name": "SourceCustomerData"
+						},
+						{
+							"dataset": {
+								"referenceName": "DS_SRC_CSV_ADLS_DF",
+								"type": "DatasetReference"
+							},
+							"name": "SourceOrderHeader"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "DS_TRGT_CSV_ADLS_DF",
+								"type": "DatasetReference"
+							},
+							"name": "EnrichedCustomerOrderDetail"
+						}
+					],
+					"transformations": [
+						{
+							"name": "SelectedCustomerColumns"
+						},
+						{
+							"name": "SelectedOrderColumns"
+						},
+						{
+							"name": "JoinCusOrders"
+						},
+						{
+							"name": "CustomerColumns"
+						},
+						{
+							"name": "FinalSelect"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          CustomerID as short,",
+						"          NameStyle as boolean,",
+						"          Title as string,",
+						"          FirstName as string,",
+						"          MiddleName as string,",
+						"          LastName as string,",
+						"          Suffix as string,",
+						"          CompanyName as string,",
+						"          SalesPerson as string,",
+						"          EmailAddress as string,",
+						"          Phone as string,",
+						"          PasswordHash as string,",
+						"          PasswordSalt as string,",
+						"          rowguid as string,",
+						"          ModifiedDate as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     partitionBy('hash', 1)) ~> SourceCustomerData",
+						"source(output(",
+						"          SalesOrderID as integer,",
+						"          RevisionNumber as short,",
+						"          OrderDate as string,",
+						"          DueDate as string,",
+						"          ShipDate as string,",
+						"          Status as short,",
+						"          OnlineOrderFlag as boolean,",
+						"          SalesOrderNumber as string,",
+						"          PurchaseOrderNumber as string,",
+						"          AccountNumber as string,",
+						"          CustomerID as short,",
+						"          ShipToAddressID as short,",
+						"          BillToAddressID as short,",
+						"          ShipMethod as string,",
+						"          CreditCardApprovalCode as string,",
+						"          SubTotal as double,",
+						"          TaxAmt as double,",
+						"          Freight as double,",
+						"          TotalDue as double,",
+						"          Comment as string,",
+						"          rowguid as string,",
+						"          ModifiedDate as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     partitionBy('hash', 1)) ~> SourceOrderHeader",
+						"SourceCustomerData select(mapColumn(",
+						"          CustomerID,",
+						"          FirstName,",
+						"          LastName",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> SelectedCustomerColumns",
+						"SourceOrderHeader select(mapColumn(",
+						"          SalesOrderID,",
+						"          CustomerID,",
+						"          Status,",
+						"          SubTotal,",
+						"          TaxAmt,",
+						"          TotalDue",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> SelectedOrderColumns",
+						"CustomerColumns, SelectedOrderColumns join(SelectedCustomerColumns@CustomerID == SelectedOrderColumns@CustomerID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     partitionBy('hash', 1),",
+						"     broadcast: 'auto')~> JoinCusOrders",
+						"SelectedCustomerColumns derive(FullName = concat(FirstName, ' ', LastName)) ~> CustomerColumns",
+						"JoinCusOrders select(mapColumn(",
+						"          CustomerID = SelectedCustomerColumns@CustomerID,",
+						"          FullName,",
+						"          SalesOrderID,",
+						"          Status,",
+						"          SubTotal,",
+						"          TaxAmt,",
+						"          TotalDue",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> FinalSelect",
+						"FinalSelect sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['EnrichedCustomerOrderDetail'],",
+						"     truncate: true,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> EnrichedCustomerOrderDetail"
+					]
+				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS_GEN2')]"
+				"[concat(variables('factoryId'), '/datasets/DS_SRC_CSV_ADLS_DF')]",
+				"[concat(variables('factoryId'), '/datasets/DS_TRGT_CSV_ADLS_DF')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DS_TRGT_PLAYERS_GOALKEEPERS')]",
+			"name": "[concat(parameters('factoryName'), '/DS_SRC_CSV_ADLS_DF')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
 					"referenceName": "LS_ADLS_GEN2",
 					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"src_file_name": {
+						"type": "string",
+						"defaultValue": "customer"
+					}
 				},
 				"annotations": [],
 				"type": "DelimitedText",
 				"typeProperties": {
 					"location": {
 						"type": "AzureBlobFSLocation",
-						"folderPath": "Raw",
+						"fileName": {
+							"value": "@dataset().src_file_name",
+							"type": "Expression"
+						},
+						"folderPath": "ONPREM_TABLES",
 						"fileSystem": "quant-container"
 					},
 					"columnDelimiter": ",",
@@ -1987,13 +2226,42 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/PL_TEST_DATA_FLOW_PLAYERS')]",
+			"name": "[concat(parameters('factoryName'), '/DS_TRGT_CSV_ADLS_DF')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_ADLS_GEN2",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "EnrichedCustomerOrderDetail",
+						"folderPath": "DataFlowOutput",
+						"fileSystem": "quant-container"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS_GEN2')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_EnrichedCustomerOrderDetail')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"activities": [
 					{
-						"name": "DataFlowPlayers",
+						"name": "EnrichedCustomerOrderDetail",
 						"type": "ExecuteDataFlow",
 						"dependsOn": [],
 						"policy": {
@@ -2006,13 +2274,25 @@
 						"userProperties": [],
 						"typeProperties": {
 							"dataflow": {
-								"referenceName": "DF_PLAYERS",
+								"referenceName": "DF_JOIN_CUS_ORDERS",
 								"type": "DataFlowReference",
 								"parameters": {},
 								"datasetParameters": {
-									"SourcePlayers": {},
-									"SinkPlayerGoalKeepers": {}
-								}
+									"SourceCustomerData": {
+										"src_file_name": {
+											"value": "@pipeline().parameters.CustomerFileName",
+											"type": "Expression"
+										}
+									},
+									"SourceOrderHeader": {
+										"src_file_name": {
+											"value": "@pipeline().parameters.OrdersFileName",
+											"type": "Expression"
+										}
+									},
+									"EnrichedCustomerOrderDetail": {}
+								},
+								"linkedServiceParameters": {}
 							},
 							"staging": {},
 							"compute": {
@@ -2029,10 +2309,18 @@
 				"policy": {
 					"elapsedTimeMetric": {}
 				},
+				"parameters": {
+					"CustomerFileName": {
+						"type": "string"
+					},
+					"OrdersFileName": {
+						"type": "string"
+					}
+				},
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/dataflows/DF_PLAYERS')]"
+				"[concat(variables('factoryId'), '/dataflows/DF_JOIN_CUS_ORDERS')]"
 			]
 		}
 	]
