@@ -16,6 +16,10 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().src_file_name",
+					"type": "Expression"
+				},
 				"folderPath": "ONPREM_TABLES",
 				"fileSystem": "quant-container"
 			},
