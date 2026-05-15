@@ -1,0 +1,146 @@
+{
+	"name": "DF_JOIN_CUS_ORDERS",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_SRC_CSV_ADLS_DF",
+						"type": "DatasetReference"
+					},
+					"name": "SourceCustomerData"
+				},
+				{
+					"dataset": {
+						"referenceName": "DS_SRC_CSV_ADLS_DF",
+						"type": "DatasetReference"
+					},
+					"name": "SourceOrderHeader"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_TRGT_CSV_ADLS_DF",
+						"type": "DatasetReference"
+					},
+					"name": "EnrichedCustomerOrderDetail"
+				}
+			],
+			"transformations": [
+				{
+					"name": "SelectedCustomerColumns"
+				},
+				{
+					"name": "SelectedOrderColumns"
+				},
+				{
+					"name": "JoinCusOrders"
+				},
+				{
+					"name": "CustomerColumns"
+				},
+				{
+					"name": "FinalSelect"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          CustomerID as short,",
+				"          NameStyle as boolean,",
+				"          Title as string,",
+				"          FirstName as string,",
+				"          MiddleName as string,",
+				"          LastName as string,",
+				"          Suffix as string,",
+				"          CompanyName as string,",
+				"          SalesPerson as string,",
+				"          EmailAddress as string,",
+				"          Phone as string,",
+				"          PasswordHash as string,",
+				"          PasswordSalt as string,",
+				"          rowguid as string,",
+				"          ModifiedDate as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     partitionBy('hash', 1)) ~> SourceCustomerData",
+				"source(output(",
+				"          SalesOrderID as integer,",
+				"          RevisionNumber as short,",
+				"          OrderDate as string,",
+				"          DueDate as string,",
+				"          ShipDate as string,",
+				"          Status as short,",
+				"          OnlineOrderFlag as boolean,",
+				"          SalesOrderNumber as string,",
+				"          PurchaseOrderNumber as string,",
+				"          AccountNumber as string,",
+				"          CustomerID as short,",
+				"          ShipToAddressID as short,",
+				"          BillToAddressID as short,",
+				"          ShipMethod as string,",
+				"          CreditCardApprovalCode as string,",
+				"          SubTotal as double,",
+				"          TaxAmt as double,",
+				"          Freight as double,",
+				"          TotalDue as double,",
+				"          Comment as string,",
+				"          rowguid as string,",
+				"          ModifiedDate as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     partitionBy('hash', 1)) ~> SourceOrderHeader",
+				"SourceCustomerData select(mapColumn(",
+				"          CustomerID,",
+				"          FirstName,",
+				"          LastName",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> SelectedCustomerColumns",
+				"SourceOrderHeader select(mapColumn(",
+				"          SalesOrderID,",
+				"          CustomerID,",
+				"          Status,",
+				"          SubTotal,",
+				"          TaxAmt,",
+				"          TotalDue",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> SelectedOrderColumns",
+				"CustomerColumns, SelectedOrderColumns join(SelectedCustomerColumns@CustomerID == SelectedOrderColumns@CustomerID,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     partitionBy('hash', 1),",
+				"     broadcast: 'auto')~> JoinCusOrders",
+				"SelectedCustomerColumns derive(FullName = concat(FirstName, ' ', LastName)) ~> CustomerColumns",
+				"JoinCusOrders select(mapColumn(",
+				"          CustomerID = SelectedCustomerColumns@CustomerID,",
+				"          FullName,",
+				"          SalesOrderID,",
+				"          Status,",
+				"          SubTotal,",
+				"          TaxAmt,",
+				"          TotalDue",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> FinalSelect",
+				"FinalSelect sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     partitionFileNames:['EnrichedCustomerOrderDetail'],",
+				"     truncate: true,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> EnrichedCustomerOrderDetail"
+			]
+		}
+	}
+}
