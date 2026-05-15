@@ -113,7 +113,7 @@
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> SelectedOrderColumns",
 				"CustomerColumns, SelectedOrderColumns join(SelectedCustomerColumns@CustomerID == SelectedOrderColumns@CustomerID,",
-				"     joinType:'left',",
+				"     joinType:'inner',",
 				"     matchType:'exact',",
 				"     ignoreSpaces: false,",
 				"     partitionBy('hash', 1),",
